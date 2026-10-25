@@ -1,7 +1,7 @@
 # Plataforma logística · Arquitectura de software
 
 **Optativa II – Fundamentos de Arquitectura de Software**
-Estudiante: *[tu nombre]* · Docente: Juan Esteban Angulo
+Estudiante: Maira Torres · Docente: Juan Esteban Angulo
 
 > **Actividad 2 – Requisitos y decisión estructural.** Convertir las necesidades del negocio en requisitos y criterios arquitectónicos, comparar alternativas y justificar una decisión estructural.
 
