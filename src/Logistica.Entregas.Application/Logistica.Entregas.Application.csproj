@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Capa de aplicación: casos de uso, contratos y puertos. Solo conoce el dominio. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Logistica.Entregas.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Logistica.Entregas.Domain\Logistica.Entregas.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
