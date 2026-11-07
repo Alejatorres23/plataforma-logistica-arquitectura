@@ -9,6 +9,9 @@ Este repositorio reúne las entregas del proyecto del curso, en orden.
 |---|---|---|
 | [Actividad 1](#actividad-1--diagnóstico-y-contexto-arquitectónico) | Diagnóstico y contexto arquitectónico | 🎥 *[pega aquí el enlace]* |
 | [Actividad 2](#actividad-2--requisitos-y-decisión-estructural) | Requisitos y decisión estructural | 🎥 *[pega aquí el enlace]* |
+| [Actividad 3](#actividad-3--diseño-y-dominio) | Diseño y dominio | 🎥 *[pega aquí el enlace]* |
+
+📐 **Arquitectura técnica del sistema:** [ARCHITECTURE.md](ARCHITECTURE.md) (diagramas C4, capas, reglas y cómo ejecutar las pruebas).
 
 ---
 
@@ -156,14 +159,99 @@ Ruteo se extrae como servicio si se cumplen **tres señales durante dos campaña
 
 ---
 
+## Actividad 3 · Diseño y dominio
+
+> Diseñar el modelo de dominio y los límites de la solución **antes** de construir las integraciones: proteger las invariantes, definir los casos de uso y los contratos, y separar el negocio de la infraestructura.
+
+### Flujo elegido: asignar una entrega
+
+El supervisor asigna una entrega pendiente a un repartidor. El sistema solo la acepta si la entrega no tiene repartidor activo y el repartidor está en turno y no está saturado. Una variante permite reasignar por una contingencia (la tormenta de la Actividad 1), siempre con un motivo.
+
+### Modelo e invariantes
+
+- **Entidad (agregado):** `Delivery`, con la entidad interna `Assignment`.
+- **Objetos de valor:**
+  - `DeliveryId`, `CourierId`, `OrderReference`;
+  - `DeliveryAddress`, `DeliveryWindow`;
+  - `CourierCapacity`, `ProofOfDelivery`.
+- **Invariantes** (todas dentro de `Delivery`):
+  - una entrega activa tiene un solo repartidor;
+  - no se asigna a un repartidor saturado o inactivo;
+  - reasignar exige un motivo;
+  - no se completa una entrega sin evidencia;
+  - los estados finales no cambian.
+
+```mermaid
+stateDiagram-v2
+    [*] --> PendienteDeAsignacion
+    PendienteDeAsignacion --> Asignada : AssignCourier
+    Asignada --> EnCamino : StartRoute
+    Asignada --> Asignada : Reassign (motivo)
+    EnCamino --> Asignada : Reassign (motivo)
+    EnCamino --> Entregada : Complete (evidencia)
+    EnCamino --> Fallida : Fail
+    Fallida --> PendienteDeAsignacion : ScheduleRetry
+    PendienteDeAsignacion --> Cancelada : Cancel
+    Asignada --> Cancelada : Cancel
+```
+
+### Capas, puertos y adaptadores
+
+```mermaid
+flowchart LR
+    INF["<b>Infraestructura</b><br/>adaptadores en memoria<br/>(SQL / HTTP en Act. 4)"] ==> APP["<b>Aplicación</b><br/>AssignCourierUseCase<br/>ReassignDeliveryUseCase<br/>puertos: IDeliveryRepository,<br/>ICourierAvailability,<br/>IDomainEventPublisher, IClock"] ==> DOM["<b>Dominio</b><br/>Delivery + objetos de valor<br/>invariantes I1–I7"]
+```
+
+Las dependencias apuntan **hacia adentro**, y las pruebas de arquitectura lo comprueban. Las decisiones y sus trade-offs están en **[ADR-002](docs/adr/ADR-002-dominio-entregas-puertos-adaptadores.md)**.
+
+### Código y pruebas
+
+```bash
+dotnet test LogisticaUltimaMilla.slnx
+```
+
+Resultado: **26 pruebas correctas**.
+
+| Grupo | Cantidad |
+|---|:-:|
+| Dominio | 14 |
+| Aplicación | 8 |
+| Arquitectura | 4 |
+
+Los escenarios Dado-Cuando-Entonces están en [`tests/features/asignar-entrega.feature`](tests/features/asignar-entrega.feature).
+
+| Documento | Contenido |
+|---|---|
+| [01-flujo-asignar-entrega.md](docs/actividad-3/01-flujo-asignar-entrega.md) | Flujo, actores, propósito y resultado esperado |
+| [02-lenguaje-ubicuo.md](docs/actividad-3/02-lenguaje-ubicuo.md) | Glosario y términos ambiguos por confirmar |
+| [03-modelo-dominio.md](docs/actividad-3/03-modelo-dominio.md) | Entidades, objetos de valor, estados y transiciones |
+| [04-invariantes-y-escenarios.md](docs/actividad-3/04-invariantes-y-escenarios.md) | Invariantes I1–I7 y escenarios de aceptación |
+| [05-contextos-y-contratos.md](docs/actividad-3/05-contextos-y-contratos.md) | Mapa de contextos y contratos que se intercambian |
+| [06-casos-uso-puertos-adaptadores.md](docs/actividad-3/06-casos-uso-puertos-adaptadores.md) | Casos de uso, puertos, adaptadores, capas y SOLID |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Diagramas C4 (contexto, contenedores, componentes) y guía técnica |
+| [ADR-002](docs/adr/ADR-002-dominio-entregas-puertos-adaptadores.md) | Decisiones de diseño, alternativas descartadas y trade-offs |
+| [guion-sustentacion.md](docs/actividad-3/guion-sustentacion.md) | Guion del video |
+
+---
+
 ## Estructura del repositorio
 
 ```
 .
 ├── README.md
+├── ARCHITECTURE.md                     ← arquitectura técnica y diagramas C4
+├── LogisticaUltimaMilla.slnx           ← solución .NET
+├── src/
+│   ├── Logistica.Entregas.Domain/          ← entidades, objetos de valor, invariantes
+│   ├── Logistica.Entregas.Application/     ← casos de uso, contratos, puertos
+│   └── Logistica.Entregas.Infrastructure/  ← adaptadores
+├── tests/
+│   ├── features/                       ← escenarios Dado-Cuando-Entonces
+│   └── Logistica.Entregas.Tests/       ← pruebas de dominio, aplicación y arquitectura
 └── docs/
     ├── actividad-1/      ← diagnóstico y contexto
     ├── actividad-2/      ← requisitos y decisión estructural
+    ├── actividad-3/      ← diseño y dominio
     └── adr/              ← registros de decisiones arquitectónicas
 ```
 
@@ -187,6 +275,20 @@ Ruteo se extrae como servicio si se cumplen **tres señales durante dos campaña
 - [x] Decisión argumentada con trade-offs
 - [x] Documento de registro de decisión (ADR)
 - [x] Criterios verificables
+- [ ] Video de sustentación entregado
+
+**Actividad 3**
+- [x] Modelo de dominio definido
+- [x] Entidades y objetos de valor diferenciados
+- [x] Invariantes listadas
+- [x] Lenguaje ubicuo y límites de contexto documentados
+- [x] Escenarios de aceptación en Dado-Cuando-Entonces
+- [x] Casos de uso principales descritos
+- [x] Contratos de aplicación definidos
+- [x] Puertos y adaptadores con dependencias dirigidas correctamente
+- [x] Diagrama C4 actualizado
+- [x] Architecture.md y ADR actualizados
+- [x] README actualizado con la propuesta y los diagramas
 - [ ] Video de sustentación entregado
 
 ---
