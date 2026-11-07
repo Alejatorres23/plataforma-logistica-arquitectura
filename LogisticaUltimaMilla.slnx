@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Logistica.Entregas.Application/Logistica.Entregas.Application.csproj" />
+    <Project Path="src/Logistica.Entregas.Domain/Logistica.Entregas.Domain.csproj" />
+    <Project Path="src/Logistica.Entregas.Infrastructure/Logistica.Entregas.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Logistica.Entregas.Tests/Logistica.Entregas.Tests.csproj" />
+  </Folder>
+</Solution>
