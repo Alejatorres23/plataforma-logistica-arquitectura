@@ -28,11 +28,11 @@ flowchart LR
     AA["📦 Administrador de almacén"] -->|"stock y preparación"| P
     R["🛵 Repartidor"] -->|"recibe entregas y reporta avance"| P
     SV["👷 Supervisor"] -->|"asigna y reasigna entregas"| P
-    P[["<b>Plataforma Logística de Última Milla</b><br/>[Sistema de software]"]]
-    P -->|"cobra"| PAG[("💳 Sistema de pagos<br/>[Externo]")]
-    P -->|"calcula rutas"| GEO[("🗺️ Geolocalización<br/>[Externo]")]
-    P -->|"envía avisos"| NOT[("✉️ Notificaciones<br/>[Externo]")]
-    P <-->|"clientes, productos, facturación"| ERP[("🏢 ERP / CRM<br/>[Externo]")]
+    P[["<b>Plataforma Logística de Última Milla</b><br/>(Sistema de software)"]]
+    P -->|"cobra"| PAG[("💳 Sistema de pagos<br/>(Externo)")]
+    P -->|"calcula rutas"| GEO[("🗺️ Geolocalización<br/>(Externo)")]
+    P -->|"envía avisos"| NOT[("✉️ Notificaciones<br/>(Externo)")]
+    P -->|"clientes, productos, facturación"| ERP[("🏢 ERP / CRM<br/>(Externo)")]
 ```
 
 ### Nivel 2 · Contenedores
@@ -45,12 +45,12 @@ flowchart LR
         SV["👷 Supervisor / Operaciones"]
     end
     subgraph PL["Plataforma Logística de Última Milla"]
-        APPC["App móvil y web del cliente<br/>[Contenedor: móvil / SPA]"]
-        APPR["App del repartidor<br/>[Contenedor: móvil]"]
-        WEB["Consola de operaciones<br/>[Contenedor: web]"]
-        API["<b>API · Monolito modular</b><br/>[Contenedor: .NET]<br/>Pedidos · Inventario · Ruteo · <b>Entregas</b>"]
-        DB[("Base de datos<br/>[Contenedor: SQL]<br/>un esquema por contexto")]
-        Q[("Cola / outbox de eventos<br/>[Contenedor]")]
+        APPC["App móvil y web del cliente<br/>(Contenedor: móvil / SPA)"]
+        APPR["App del repartidor<br/>(Contenedor: móvil)"]
+        WEB["Consola de operaciones<br/>(Contenedor: web)"]
+        API["<b>API · Monolito modular</b><br/>(Contenedor: .NET)<br/>Pedidos · Inventario · Ruteo · <b>Entregas</b>"]
+        DB[("Base de datos<br/>(Contenedor: SQL)<br/>un esquema por contexto")]
+        Q[("Cola / outbox de eventos<br/>(Contenedor)")]
     end
     C --> APPC -->|"HTTPS /api/v1"| API
     R --> APPR -->|"HTTPS /api/v1"| API
@@ -68,7 +68,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    IN["DeliveriesController<br/>[adaptador de entrada · Actividad 4]"]
+    IN["DeliveriesController<br/>(adaptador de entrada · Actividad 4)"]
     subgraph APP["Aplicación"]
         UC1["AssignCourierUseCase"]
         UC2["ReassignDeliveryUseCase"]
