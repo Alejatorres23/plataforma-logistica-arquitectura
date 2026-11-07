@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Capa de dominio: no referencia ningún otro proyecto ni paquete. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Logistica.Entregas.Domain</RootNamespace>
+  </PropertyGroup>
+
+</Project>
