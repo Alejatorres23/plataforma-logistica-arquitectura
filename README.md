@@ -10,6 +10,20 @@ Este repositorio reúne las entregas del proyecto del curso, en orden.
 | [Actividad 1](#actividad-1--diagnóstico-y-contexto-arquitectónico) | Diagnóstico y contexto arquitectónico | 🎥 *[pega aquí el enlace]* |
 | [Actividad 2](#actividad-2--requisitos-y-decisión-estructural) | Requisitos y decisión estructural | 🎥 *[pega aquí el enlace]* |
 | [Actividad 3](#actividad-3--diseño-y-dominio) | Diseño y dominio | 🎥 *[pega aquí el enlace]* |
+| [Actividad 4](#actividad-4--construcción-validación-y-defensa-final) | Construcción, validación y defensa final | 🎥 *[pega aquí el enlace]* |
+
+## ▶️ Cómo ejecutar
+
+Requisito: [.NET SDK 10](https://dotnet.microsoft.com/download).
+
+```bash
+dotnet test LogisticaUltimaMilla.slnx                 # todas las pruebas
+dotnet run --project src/Logistica.Entregas.Api       # API en http://localhost:5080
+```
+
+```powershell
+./scripts/demo.ps1                                    # en otra terminal: demostración del flujo
+```
 
 📐 **Arquitectura técnica del sistema:** [ARCHITECTURE.md](ARCHITECTURE.md) (diagramas C4, capas, reglas y cómo ejecutar las pruebas).
 
@@ -210,7 +224,7 @@ Las dependencias apuntan **hacia adentro**, y las pruebas de arquitectura lo com
 dotnet test LogisticaUltimaMilla.slnx
 ```
 
-Resultado: **26 pruebas correctas**.
+Resultado al cerrar esta actividad: **26 pruebas correctas** (hoy la suite completa tiene 60, ver Actividad 4).
 
 | Grupo | Cantidad |
 |---|:-:|
@@ -234,6 +248,37 @@ Los escenarios Dado-Cuando-Entonces están en [`tests/features/asignar-entrega.f
 
 ---
 
+## Actividad 4 · Construcción, validación y defensa final
+
+> Implementar y validar el flujo diseñado en la Actividad 3, conectando entrada, dominio, persistencia e integración sin romper sus límites.
+
+### Vertical slice implementado: asignar una entrega
+
+```mermaid
+flowchart LR
+    S["Supervisor"] -->|"POST /api/v1/deliveries/{id}/assignment"| EP["API<br/>(validación, códigos HTTP,<br/>clave de API, correlación)"]
+    EP --> UC["AssignCourierUseCase"] --> D["Delivery<br/>(invariantes)"]
+    UC --> R["SqliteDeliveryRepository<br/>(versión optimista + outbox)"] --> DB[("SQLite<br/>migraciones V1, V2")]
+    UC --> H["HttpCourierAvailability<br/>(timeout + reintentos)"] --> T[("Servicio de turnos")]
+    O["OutboxDispatcher<br/>(reintentos + DLQ)"] --> DB
+    O --> N[("Notificaciones")]
+```
+
+| Requisito de la guía | Cómo se cumple |
+|---|---|
+| Flujo funcional implementado | API REST: crear, asignar, reasignar y consultar ([doc. 01](docs/actividad-4/01-implementacion-vertical-slice.md)) |
+| Persistencia aislada + migraciones reproducibles | SQLite detrás de `IDeliveryRepository`; migraciones `V{n}__*.sql` estilo Flyway |
+| Integración y manejo de errores | Servicio de turnos: timeout, reintentos, `503` controlado. Eventos: outbox, reintentos y cola de mensajes fallidos |
+| Pruebas unitarias, de integración y de error/límite | [doc. 02](docs/actividad-4/02-pruebas-y-evidencia.md) (con la evidencia de ejecución) |
+| Riesgos operativos y de seguridad | [doc. 03](docs/actividad-4/03-riesgos-y-mitigaciones.md): cada riesgo con mitigación y prueba |
+| Observabilidad sin datos sensibles | [doc. 04](docs/actividad-4/04-observabilidad.md): logs con correlación, métricas, trazas, `/health` |
+| Comprobación automatizada | [CI](.github/workflows/ci.yml): compilación, análisis de dependencias vulnerables y fitness functions |
+| Riesgos residuales y próximos pasos | [doc. 05](docs/actividad-4/05-resultados-residuales-proximos-pasos.md) |
+| Decisiones vinculadas a la Actividad 3 | [ADR-003](docs/adr/ADR-003-implementacion-persistencia-integracion.md) y la tabla de trazabilidad del doc. 01 |
+| Defensa final | [guion-sustentacion.md](docs/actividad-4/guion-sustentacion.md) |
+
+---
+
 ## Estructura del repositorio
 
 ```
@@ -244,14 +289,18 @@ Los escenarios Dado-Cuando-Entonces están en [`tests/features/asignar-entrega.f
 ├── src/
 │   ├── Logistica.Entregas.Domain/          ← entidades, objetos de valor, invariantes
 │   ├── Logistica.Entregas.Application/     ← casos de uso, contratos, puertos
-│   └── Logistica.Entregas.Infrastructure/  ← adaptadores
+│   ├── Logistica.Entregas.Infrastructure/  ← adaptadores: SQLite, HTTP, outbox, telemetría
+│   └── Logistica.Entregas.Api/             ← entrada HTTP y composición
 ├── tests/
 │   ├── features/                       ← escenarios Dado-Cuando-Entonces
-│   └── Logistica.Entregas.Tests/       ← pruebas de dominio, aplicación y arquitectura
+│   └── Logistica.Entregas.Tests/       ← dominio, aplicación, infraestructura, API y arquitectura
+├── scripts/demo.ps1                    ← demostración del flujo
+├── .github/workflows/ci.yml            ← integración continua
 └── docs/
     ├── actividad-1/      ← diagnóstico y contexto
     ├── actividad-2/      ← requisitos y decisión estructural
     ├── actividad-3/      ← diseño y dominio
+    ├── actividad-4/      ← implementación, pruebas, riesgos, observabilidad
     └── adr/              ← registros de decisiones arquitectónicas
 ```
 
@@ -290,6 +339,24 @@ Los escenarios Dado-Cuando-Entonces están en [`tests/features/asignar-entrega.f
 - [x] Architecture.md y ADR actualizados
 - [x] README actualizado con la propuesta y los diagramas
 - [ ] Video de sustentación entregado
+
+**Actividad 4**
+- [x] Flujo funcional implementado
+- [x] Arquitectura con capas o límites claros
+- [x] Persistencia e integración externa aisladas
+- [x] Manejo de errores y fallos pertinente al flujo
+- [x] Migraciones reproducibles
+- [x] README con instrucciones de ejecución
+- [x] Pruebas unitarias de reglas críticas
+- [x] Pruebas de integración del flujo y evidencia de ejecución
+- [x] Caso de error o límite comprobado
+- [x] Riesgos operativos y de seguridad con mitigaciones
+- [x] Observabilidad mínima documentada
+- [x] Comprobación automatizada de calidad y arquitectura
+- [x] Riesgos residuales y próximos pasos documentados
+- [x] Decisiones de implementación vinculadas al diseño de la Actividad 3
+- [x] Expediente arquitectónico actualizado
+- [ ] Video de demostración y defensa final entregado
 
 ---
 

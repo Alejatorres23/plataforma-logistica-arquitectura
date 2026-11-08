@@ -65,7 +65,7 @@ Escenario: No se puede completar una entrega sin evidencia de recepción # I5
 dotnet test LogisticaUltimaMilla.slnx
 ```
 
-Resultado actual: **26 pruebas correctas**.
+Resultado al cerrar la Actividad 3: **26 pruebas correctas**. Con la Actividad 4 la suite creció a 60 (ver [Actividad 4, doc. 02](../actividad-4/02-pruebas-y-evidencia.md)).
 
 | Grupo | Cantidad | Qué prueba |
 |---|:-:|---|

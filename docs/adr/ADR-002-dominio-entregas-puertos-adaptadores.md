@@ -77,7 +77,7 @@ La infraestructura las implementa. En esta actividad los adaptadores son **en me
 
 ## 6. Cómo verificamos la decisión
 
-- `dotnet test`: **26 pruebas correctas**.
+- `dotnet test`: **26 pruebas correctas** al cerrar la Actividad 3 (60 tras la Actividad 4).
   - Las **invariantes I1–I7** tienen al menos una prueba de dominio cada una.
   - Los **escenarios Dado-Cuando-Entonces** del `.feature` tienen su prueba con los casos de uso y los adaptadores en memoria.
   - Las **pruebas de arquitectura** fallan si el dominio referencia otra capa o tipos de BD/HTTP/archivos.
