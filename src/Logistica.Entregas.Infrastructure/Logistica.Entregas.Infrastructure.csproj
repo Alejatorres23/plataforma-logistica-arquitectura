@@ -12,4 +12,16 @@
     <ProjectReference Include="..\Logistica.Entregas.Application\Logistica.Entregas.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <!-- Versión explícita del motor nativo: la 2.1.11 que trae por defecto tiene una vulnerabilidad alta (GHSA-2m69-gcr7-jv3q). -->
+    <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.14" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+  </ItemGroup>
+
+  <!-- Migraciones versionadas (convención de Flyway: V{n}__{descripcion}.sql) embebidas en el ensamblado. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Persistence\Migrations\*.sql" />
+  </ItemGroup>
+
 </Project>
