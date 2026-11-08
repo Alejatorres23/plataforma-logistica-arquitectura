@@ -7,7 +7,7 @@ using Logistica.Entregas.Infrastructure;
 namespace Logistica.Entregas.Tests.Application;
 
 /// <summary>
-/// Pruebas del flujo completo con los adaptadores en memoria.
+/// Pruebas de los casos de uso con los adaptadores en memoria.
 /// Siguen los escenarios de tests/features/asignar-entrega.feature.
 /// </summary>
 public class AssignCourierUseCaseTests
@@ -17,11 +17,17 @@ public class AssignCourierUseCaseTests
         public DateTimeOffset Now { get; } = now;
     }
 
+    private sealed class DownCourierService : ICourierAvailability
+    {
+        public Task<CourierCapacity?> GetCapacityAsync(CourierId courierId, CancellationToken ct = default)
+            => throw new CourierAvailabilityUnavailableException("Servicio caído (prueba).");
+    }
+
     private static readonly DateTimeOffset Now = new(2026, 11, 7, 15, 0, 0, TimeSpan.FromHours(-5));
 
     private readonly InMemoryDeliveryRepository _deliveries = new();
     private readonly InMemoryCourierAvailability _couriers = new();
-    private readonly InMemoryDomainEventPublisher _events = new();
+    private readonly FixedClock _clock = new(Now);
     private readonly AssignCourierUseCase _assign;
     private readonly ReassignDeliveryUseCase _reassign;
 
@@ -30,9 +36,8 @@ public class AssignCourierUseCaseTests
 
     public AssignCourierUseCaseTests()
     {
-        var clock = new FixedClock(Now);
-        _assign = new AssignCourierUseCase(_deliveries, _couriers, _events, clock);
-        _reassign = new ReassignDeliveryUseCase(_deliveries, _couriers, _events, clock);
+        _assign = new AssignCourierUseCase(_deliveries, _couriers, _clock);
+        _reassign = new ReassignDeliveryUseCase(_deliveries, _couriers, _clock);
 
         // Antecedentes
         _delivery = Delivery.Create(
@@ -40,7 +45,7 @@ public class AssignCourierUseCaseTests
             new DeliveryAddress("Carrera 50 # 10-30, Medellín"),
             new DeliveryWindow(Now.AddHours(1), Now.AddHours(3)),
             DeliveryPriority.Normal);
-        _deliveries.SaveAsync(_delivery).Wait();
+        _deliveries.AddAsync(_delivery, []).Wait();
         _couriers.Register(new CourierCapacity(_ana, isActive: true, activeDeliveries: 2, maxDeliveries: 5));
     }
 
@@ -55,7 +60,7 @@ public class AssignCourierUseCaseTests
         => _assign.ExecuteAsync(new AssignCourierCommand(deliveryId ?? _delivery.Id.Value, courier.Value, "supervisor-1"));
 
     [Fact]
-    public async Task AssignCourier_RepartidorDisponible_QuedaAsignadaYSePublicaEvento()
+    public async Task AssignCourier_RepartidorDisponible_QuedaAsignadaYSeGuardaElEvento()
     {
         var result = await Assign(_ana);
 
@@ -63,7 +68,7 @@ public class AssignCourierUseCaseTests
         var saved = await _deliveries.GetAsync(_delivery.Id);
         Assert.Equal(DeliveryStatus.Asignada, saved!.Status);
         Assert.Equal(_ana, saved.CurrentCourierId);
-        var evento = Assert.IsType<CourierAssigned>(Assert.Single(_events.Published));
+        var evento = Assert.IsType<CourierAssigned>(Assert.Single(_deliveries.Outbox));
         Assert.Equal(_ana, evento.CourierId);
     }
 
@@ -78,7 +83,7 @@ public class AssignCourierUseCaseTests
         Assert.False(result.Succeeded);
         Assert.Equal(DomainErrors.AlreadyAssigned, result.ErrorCode);
         Assert.Equal(_ana, (await _deliveries.GetAsync(_delivery.Id))!.CurrentCourierId);
-        Assert.Single(_events.Published); // solo el evento de la primera asignación
+        Assert.Single(_deliveries.Outbox); // solo el evento de la primera asignación
     }
 
     [Fact]
@@ -91,7 +96,7 @@ public class AssignCourierUseCaseTests
         Assert.False(result.Succeeded);
         Assert.Equal(DomainErrors.CourierSaturated, result.ErrorCode);
         Assert.Equal(DeliveryStatus.PendienteDeAsignacion, (await _deliveries.GetAsync(_delivery.Id))!.Status);
-        Assert.Empty(_events.Published);
+        Assert.Empty(_deliveries.Outbox);
     }
 
     [Fact]
@@ -122,6 +127,18 @@ public class AssignCourierUseCaseTests
     }
 
     [Fact]
+    public async Task AssignCourier_ServicioDeTurnosCaido_FallaControladaSinCambiarLaEntrega()
+    {
+        var useCase = new AssignCourierUseCase(_deliveries, new DownCourierService(), _clock);
+
+        var result = await useCase.ExecuteAsync(new AssignCourierCommand(_delivery.Id.Value, _ana.Value, "supervisor-1"));
+
+        Assert.False(result.Succeeded);
+        Assert.Equal(ApplicationErrors.CourierServiceUnavailable, result.ErrorCode);
+        Assert.Equal(DeliveryStatus.PendienteDeAsignacion, (await _deliveries.GetAsync(_delivery.Id))!.Status);
+    }
+
+    [Fact]
     public async Task Reassign_PorTormenta_CierraAsignacionAnteriorYRegistraMotivo()
     {
         await Assign(_ana);
@@ -134,7 +151,7 @@ public class AssignCourierUseCaseTests
         var saved = (await _deliveries.GetAsync(_delivery.Id))!;
         Assert.Equal(luis, saved.CurrentCourierId);
         Assert.Equal("Tormenta: vía cerrada", saved.Assignments.Single(a => a.CourierId == _ana).ReleaseReason);
-        Assert.IsType<DeliveryReassigned>(_events.Published.Last());
+        Assert.IsType<DeliveryReassigned>(_deliveries.Outbox.Last());
     }
 
     [Fact]
@@ -147,5 +164,18 @@ public class AssignCourierUseCaseTests
             new ReassignDeliveryCommand(_delivery.Id.Value, luis.Value, "", "supervisor-1"));
 
         Assert.Equal(DomainErrors.ReasonRequired, result.ErrorCode);
+    }
+
+    [Theory]
+    [InlineData("Expresa")]
+    [InlineData("7")]
+    public async Task CreateDelivery_PrioridadInvalida_SeRechaza(string priority)
+    {
+        var useCase = new CreateDeliveryUseCase(_deliveries);
+
+        var result = await useCase.ExecuteAsync(new CreateDeliveryCommand(
+            Guid.NewGuid(), "Calle 1", Now, Now.AddHours(2), priority));
+
+        Assert.Equal(DomainErrors.InvalidValue, result.ErrorCode);
     }
 }

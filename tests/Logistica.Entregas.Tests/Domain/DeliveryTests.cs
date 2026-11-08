@@ -180,6 +180,35 @@ public class DeliveryTests
         Assert.Single(delivery.Assignments, a => a.IsActive);
     }
 
+    [Fact] // I1 también al reconstruir desde la base de datos
+    public void Restore_ConDosAsignacionesActivas_SeRechaza()
+    {
+        var snapshots = new[]
+        {
+            new AssignmentSnapshot(new CourierId(Guid.NewGuid()), Now, null, null),
+            new AssignmentSnapshot(new CourierId(Guid.NewGuid()), Now.AddMinutes(1), null, null),
+        };
+
+        var error = Assert.Throws<DomainException>(() => Delivery.Restore(DeliveryId.New(), new OrderReference(Guid.NewGuid()),
+            new DeliveryAddress("Calle 1"), new DeliveryWindow(Now, Now.AddHours(1)), DeliveryPriority.Normal,
+            DeliveryStatus.Asignada, null, snapshots));
+
+        Assert.Equal(DomainErrors.InvalidValue, error.Code);
+    }
+
+    [Fact]
+    public void Restore_ReconstruyeEstadoSinGenerarEventosYSigueProtegiendoLasReglas()
+    {
+        var ana = new CourierId(Guid.NewGuid());
+        var delivery = Delivery.Restore(DeliveryId.New(), new OrderReference(Guid.NewGuid()),
+            new DeliveryAddress("Calle 1"), new DeliveryWindow(Now, Now.AddHours(1)), DeliveryPriority.Normal,
+            DeliveryStatus.Asignada, null, [new AssignmentSnapshot(ana, Now, null, null)]);
+
+        Assert.Equal(ana, delivery.CurrentCourierId);
+        Assert.Empty(delivery.PullEvents());
+        Assert.Throws<DomainException>(() => delivery.AssignCourier(Courier(), Now)); // I1 sigue vigente
+    }
+
     [Fact]
     public void DeliveryWindow_FinAntesDelInicio_NoPuedeCrearse()
     {
