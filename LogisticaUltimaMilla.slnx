@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/Logistica.Entregas.Api/Logistica.Entregas.Api.csproj" />
     <Project Path="src/Logistica.Entregas.Application/Logistica.Entregas.Application.csproj" />
     <Project Path="src/Logistica.Entregas.Domain/Logistica.Entregas.Domain.csproj" />
     <Project Path="src/Logistica.Entregas.Infrastructure/Logistica.Entregas.Infrastructure.csproj" />

@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- Capa de entrada: API HTTP. Traduce HTTP <-> contratos de aplicación y compone las dependencias. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Logistica.Entregas.Api</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Logistica.Entregas.Application\Logistica.Entregas.Application.csproj" />
+    <ProjectReference Include="..\Logistica.Entregas.Infrastructure\Logistica.Entregas.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>
