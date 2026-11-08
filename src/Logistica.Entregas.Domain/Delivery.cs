@@ -36,6 +36,9 @@ public sealed class Assignment
     }
 }
 
+/// <summary>Datos guardados de una asignación, para reconstruir el agregado.</summary>
+public sealed record AssignmentSnapshot(CourierId CourierId, DateTimeOffset AssignedAt, DateTimeOffset? ReleasedAt, string? ReleaseReason);
+
 /// <summary>
 /// Entrega: raíz del agregado del contexto Entregas. Toda modificación pasa por sus métodos,
 /// que son los que protegen las invariantes:
@@ -78,6 +81,34 @@ public sealed class Delivery
     /// <summary>Crea la entrega de un pedido confirmado. Nace pendiente de asignación.</summary>
     public static Delivery Create(OrderReference order, DeliveryAddress address, DeliveryWindow window, DeliveryPriority priority)
         => new(DeliveryId.New(), order, address, window, priority);
+
+    /// <summary>
+    /// Reconstruye una entrega ya existente a partir de lo guardado (lo usa el repositorio).
+    /// No genera eventos y rechaza un estado guardado que viole la invariante I1.
+    /// </summary>
+    public static Delivery Restore(
+        DeliveryId id,
+        OrderReference order,
+        DeliveryAddress address,
+        DeliveryWindow window,
+        DeliveryPriority priority,
+        DeliveryStatus status,
+        ProofOfDelivery? proof,
+        IEnumerable<AssignmentSnapshot> assignments)
+    {
+        var delivery = new Delivery(id, order, address, window, priority) { Status = status, Proof = proof };
+        foreach (var snapshot in assignments.OrderBy(a => a.AssignedAt))
+        {
+            var assignment = new Assignment(snapshot.CourierId, snapshot.AssignedAt);
+            if (snapshot.ReleasedAt is { } releasedAt)
+                assignment.Release(snapshot.ReleaseReason ?? string.Empty, releasedAt);
+            delivery._assignments.Add(assignment);
+        }
+
+        if (delivery._assignments.Count(a => a.IsActive) > 1)
+            throw new DomainException(DomainErrors.InvalidValue, "El estado guardado tiene más de un repartidor activo.");
+        return delivery;
+    }
 
     /// <summary>Asigna el primer repartidor a la entrega.</summary>
     public void AssignCourier(CourierCapacity courier, DateTimeOffset at)
