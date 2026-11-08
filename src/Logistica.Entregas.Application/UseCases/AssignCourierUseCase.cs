@@ -12,7 +12,6 @@ namespace Logistica.Entregas.Application.UseCases;
 public sealed class AssignCourierUseCase(
     IDeliveryRepository deliveries,
     ICourierAvailability couriers,
-    IDomainEventPublisher events,
     IClock clock)
 {
     public async Task<AssignmentResult> ExecuteAsync(AssignCourierCommand command, CancellationToken ct = default)
@@ -23,7 +22,15 @@ public sealed class AssignCourierUseCase(
             return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.DeliveryNotFound, "La entrega no existe.");
 
         // 3. Consultar la disponibilidad del repartidor mediante un puerto, no una API concreta.
-        var capacity = await couriers.GetCapacityAsync(new CourierId(command.CourierId), ct);
+        CourierCapacity? capacity;
+        try
+        {
+            capacity = await couriers.GetCapacityAsync(new CourierId(command.CourierId), ct);
+        }
+        catch (CourierAvailabilityUnavailableException e)
+        {
+            return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.CourierServiceUnavailable, e.Message);
+        }
         if (capacity is null)
             return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.CourierNotFound, "El repartidor no existe.");
 
@@ -37,11 +44,16 @@ public sealed class AssignCourierUseCase(
             return AssignmentResult.Fail(command.DeliveryId, e.Code, e.Message);
         }
 
-        // 5. Guardar mediante el repositorio.
-        await deliveries.SaveAsync(delivery, ct);
-
-        // 6. Publicar el resultado mediante un adaptador (Notificaciones / Auditoría).
-        await events.PublishAsync(delivery.PullEvents(), ct);
+        // 5-6. Guardar la entrega y sus eventos juntos (outbox): Notificaciones y Auditoría
+        // los reciben después, aunque ese servicio esté caído en este momento.
+        try
+        {
+            await deliveries.SaveAsync(delivery, delivery.PullEvents(), ct);
+        }
+        catch (ConcurrencyConflictException e)
+        {
+            return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.ConcurrencyConflict, e.Message);
+        }
 
         return AssignmentResult.Ok(command.DeliveryId, command.CourierId, delivery.Status.ToString());
     }

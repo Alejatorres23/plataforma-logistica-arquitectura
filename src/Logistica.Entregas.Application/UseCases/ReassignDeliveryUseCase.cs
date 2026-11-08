@@ -11,7 +11,6 @@ namespace Logistica.Entregas.Application.UseCases;
 public sealed class ReassignDeliveryUseCase(
     IDeliveryRepository deliveries,
     ICourierAvailability couriers,
-    IDomainEventPublisher events,
     IClock clock)
 {
     public async Task<AssignmentResult> ExecuteAsync(ReassignDeliveryCommand command, CancellationToken ct = default)
@@ -20,7 +19,15 @@ public sealed class ReassignDeliveryUseCase(
         if (delivery is null)
             return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.DeliveryNotFound, "La entrega no existe.");
 
-        var capacity = await couriers.GetCapacityAsync(new CourierId(command.NewCourierId), ct);
+        CourierCapacity? capacity;
+        try
+        {
+            capacity = await couriers.GetCapacityAsync(new CourierId(command.NewCourierId), ct);
+        }
+        catch (CourierAvailabilityUnavailableException e)
+        {
+            return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.CourierServiceUnavailable, e.Message);
+        }
         if (capacity is null)
             return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.CourierNotFound, "El repartidor no existe.");
 
@@ -33,8 +40,14 @@ public sealed class ReassignDeliveryUseCase(
             return AssignmentResult.Fail(command.DeliveryId, e.Code, e.Message);
         }
 
-        await deliveries.SaveAsync(delivery, ct);
-        await events.PublishAsync(delivery.PullEvents(), ct);
+        try
+        {
+            await deliveries.SaveAsync(delivery, delivery.PullEvents(), ct);
+        }
+        catch (ConcurrencyConflictException e)
+        {
+            return AssignmentResult.Fail(command.DeliveryId, ApplicationErrors.ConcurrencyConflict, e.Message);
+        }
 
         return AssignmentResult.Ok(command.DeliveryId, command.NewCourierId, delivery.Status.ToString());
     }
