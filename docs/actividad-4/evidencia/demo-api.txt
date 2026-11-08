@@ -1,0 +1,81 @@
+# Salida real de scripts/demo.ps1 contra la API en ejecución (dotnet run, entorno Development)
+# Fecha: 2026-11-07 19:52 · Windows 11 · .NET SDK 10.0.203
+
+
+=== Salud de la API ===
+  -> HTTP 200
+  {"estado":"ok","baseDeDatos":"ok","outboxPendientes":0,"mensajesFallidos":0}
+
+=== 1. Llega un pedido confirmado: se crea la entrega ===
+  -> HTTP 201
+  {"succeeded":true,"deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","courierId":null,"status":"PendienteDeAsignacion","errorCode":null,"errorMessage":null}
+
+=== 2. Intento asignar a Carlos (saturado) -> 422 REPARTIDOR_SATURADO ===
+  -> HTTP 422
+  {"type":"https://tools.ietf.org/html/rfc4918#section-11.2","title":"El repartidor alcanzó su máximo de entregas activas.","status":422,"code":"REPARTIDOR_SATURADO","deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","traceId":"00-9f7db673e997875fc31955a681af39c2-47b76371f64faa2c-00","correlationId":"demo-1561"}
+
+=== 3. Asigno a Ana -> 200 Asignada ===
+  -> HTTP 200
+  {"succeeded":true,"deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","courierId":"11111111-1111-1111-1111-111111111111","status":"Asignada","errorCode":null,"errorMessage":null}
+
+=== 4. Intento asignarla otra vez a Luis -> 409 ENTREGA_YA_ASIGNADA (invariante I1) ===
+  -> HTTP 409
+  {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.10","title":"La entrega ya tiene un repartidor activo.","status":409,"code":"ENTREGA_YA_ASIGNADA","deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","traceId":"00-eea1064e1758c3534344c687ee2c3eee-920cb84bc4d80e63-00","correlationId":"demo-1561"}
+
+=== 5. Tormenta: reasigno a Luis con motivo -> 200 ===
+  -> HTTP 200
+  {"succeeded":true,"deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","courierId":"22222222-2222-2222-2222-222222222222","status":"Asignada","errorCode":null,"errorMessage":null}
+
+=== 6. Consulto la entrega (estado e historial, sin dirección) ===
+  -> HTTP 200
+  {"deliveryId":"43e9ec29-2aff-4f6b-a836-1f3fddfb313e","orderId":"8ab9987f-ec4a-466d-ad39-5dd428e27172","status":"Asignada","priority":"Normal","windowStart":"2026-11-08T01:45:10.7171222+00:00","windowEnd":"2026-11-08T03:45:10.7171222+00:00","currentCourierId":"22222222-2222-2222-2222-222222222222","assignments":[{"courierId":"11111111-1111-1111-1111-111111111111","assignedAt":"2026-11-08T00:46:02.3038455+00:00","releasedAt":"2026-11-08T00:46:53.3114854+00:00","releaseReason":"Tormenta: vía cerrada"},{"courierId":"22222222-2222-2222-2222-222222222222","assignedAt":"2026-11-08T00:46:53.3114854+00:00","releasedAt":null,"releaseReason":null}]}
+
+=== 7. Simulo la caída del servicio de turnos y pruebo asignar otra entrega -> 503 ===
+  -> HTTP 200
+  {"servicioTurnosCaido":true,"notificacionesCaidas":false}
+  -> HTTP 201
+  {"succeeded":true,"deliveryId":"bd1960bd-95a0-4492-896e-3e4bf0ac2626","courierId":null,"status":"PendienteDeAsignacion","errorCode":null,"errorMessage":null}
+  -> HTTP 503
+  {"type":"https://tools.ietf.org/html/rfc9110#section-15.6.4","title":"El servicio de turnos de repartidores no está disponible. Intente de nuevo en unos minutos.","status":503,"code":"SERVICIO_REPARTIDORES_NO_DISPONIBLE","deliveryId":"bd1960bd-95a0-4492-896e-3e4bf0ac2626","traceId":"00-0170d1ed2df7438723f1b3a5b34ba39f-fca5a8e671a68233-00","correlationId":"demo-1561"}
+  -> HTTP 200
+  {"servicioTurnosCaido":false,"notificacionesCaidas":false}
+
+=== 8. Sin clave de API -> 401 ===
+  -> HTTP 401
+  {"type":"https://tools.ietf.org/html/rfc9110#section-15.5.2","title":"Falta la clave de API o no es válida.","status":401,"traceId":"00-a5e993b464cb626768ff220d34a97b27-91a583d42fbea819-00","correlationId":"demo-1561"}
+
+Listo. Revise en la consola de la API los logs con el CorrelationId demo-1561.
+
+# ---- Log de la API durante la demostración (se recortaron SpanId/ConnectionId) ----
+
+19:45:54 warn: Logistica.Entregas.Infrastructure.Couriers.HttpCourierAvailability[0]
+      => /api/v1/deliveries/43e9ec29-2aff-4f6b-a836-1f3fddfb313e/assignment => CorrelationId:demo-1561
+      Falla transitoria consultando el servicio de turnos (intento 1 de 3): El servicio de turnos no respondió en 2000 ms.
+19:45:56 info: Logistica.Entregas.Application.UseCases.AssignCourierUseCase[0]
+      => /api/v1/deliveries/43e9ec29-2aff-4f6b-a836-1f3fddfb313e/assignment => CorrelationId:demo-1561
+      Operación asignar de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e: rechazada (REPARTIDOR_SATURADO) en 5307 ms
+19:46:02 info: Logistica.Entregas.Application.UseCases.AssignCourierUseCase[0]
+      => /api/v1/deliveries/43e9ec29-2aff-4f6b-a836-1f3fddfb313e/assignment => CorrelationId:demo-1561
+      Operación asignar de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e: ok (OK) en 423 ms
+19:46:03 info: Logistica.Entregas.Infrastructure.Messaging.SimulatedNotificationBus[0]
+      Evento RepartidorAsignado de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e publicado a Notificaciones y Auditoría
+19:46:52 info: Logistica.Entregas.Application.UseCases.AssignCourierUseCase[0]
+      => /api/v1/deliveries/43e9ec29-2aff-4f6b-a836-1f3fddfb313e/assignment => CorrelationId:demo-1561
+      Operación asignar de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e: rechazada (ENTREGA_YA_ASIGNADA) en 212 ms
+19:46:53 info: Logistica.Entregas.Application.UseCases.ReassignDeliveryUseCase[0]
+      => /api/v1/deliveries/43e9ec29-2aff-4f6b-a836-1f3fddfb313e/reassignment => CorrelationId:demo-1561
+      Operación reasignar de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e: ok (OK) en 764 ms
+19:46:55 info: Logistica.Entregas.Infrastructure.Messaging.SimulatedNotificationBus[0]
+      Evento EntregaReasignada de la entrega 43e9ec29-2aff-4f6b-a836-1f3fddfb313e publicado a Notificaciones y Auditoría
+19:49:59 warn: Logistica.Entregas.Infrastructure.Couriers.HttpCourierAvailability[0]
+      => /api/v1/deliveries/bd1960bd-95a0-4492-896e-3e4bf0ac2626/assignment => CorrelationId:demo-1561
+      Falla transitoria consultando el servicio de turnos (intento 1 de 3): Respuesta 503 del servicio de turnos.
+19:49:59 warn: Logistica.Entregas.Infrastructure.Couriers.HttpCourierAvailability[0]
+      => /api/v1/deliveries/bd1960bd-95a0-4492-896e-3e4bf0ac2626/assignment => CorrelationId:demo-1561
+      Falla transitoria consultando el servicio de turnos (intento 2 de 3): Respuesta 503 del servicio de turnos.
+19:50:00 warn: Logistica.Entregas.Infrastructure.Couriers.HttpCourierAvailability[0]
+      => /api/v1/deliveries/bd1960bd-95a0-4492-896e-3e4bf0ac2626/assignment => CorrelationId:demo-1561
+      Falla transitoria consultando el servicio de turnos (intento 3 de 3): Respuesta 503 del servicio de turnos.
+19:50:00 warn: Logistica.Entregas.Application.UseCases.AssignCourierUseCase[0]
+      => /api/v1/deliveries/bd1960bd-95a0-4492-896e-3e4bf0ac2626/assignment => CorrelationId:demo-1561
+      Operación asignar de la entrega bd1960bd-95a0-4492-896e-3e4bf0ac2626: rechazada (SERVICIO_REPARTIDORES_NO_DISPONIBLE) en 1748 ms
