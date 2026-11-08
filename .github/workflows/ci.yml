@@ -1,0 +1,46 @@
+# Integración continua: en cada push o pull request a main se compila, se revisan
+# dependencias vulnerables y se ejecutan todas las pruebas, incluidas las de arquitectura
+# (fitness functions). Si algo falla, el cambio no debería integrarse.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restaurar dependencias
+        run: dotnet restore LogisticaUltimaMilla.slnx
+
+      - name: Compilar
+        run: dotnet build LogisticaUltimaMilla.slnx --no-restore -c Release
+
+      - name: Revisar dependencias vulnerables (SCA)
+        run: |
+          dotnet list LogisticaUltimaMilla.slnx package --vulnerable --include-transitive | tee vulnerables.txt
+          if grep -qE "\b(High|Critical|Alta|Crítica)\b" vulnerables.txt; then
+            echo "::error::Hay dependencias con vulnerabilidades altas o críticas"; exit 1
+          fi
+
+      - name: Pruebas (unitarias, integración y arquitectura)
+        run: dotnet test LogisticaUltimaMilla.slnx --no-build -c Release --logger "trx;LogFileName=resultados.trx" --results-directory TestResults
+
+      - name: Publicar resultados de las pruebas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultados-pruebas
+          path: TestResults
