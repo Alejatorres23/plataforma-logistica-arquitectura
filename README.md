@@ -87,7 +87,6 @@ Una **plataforma centralizada** que permita registrar pedidos, validar inventari
 | [04-riesgos.md](docs/actividad-1/04-riesgos.md) | Riesgos con probabilidad, impacto y respuesta inicial |
 | [05-supuestos-y-decisiones.md](docs/actividad-1/05-supuestos-y-decisiones.md) | D. Hechos, supuestos, decisiones, lo que no sabemos y lo que hay que confirmar |
 | [06-caso-reasignacion-tormenta.md](docs/actividad-1/06-caso-reasignacion-tormenta.md) | Caso de la tormenta: alternativas, decisión, trade-off y verificación |
-| [guion-sustentacion.md](docs/actividad-1/guion-sustentacion.md) | Guion del video (5–8 min) |
 
 ---
 
@@ -169,7 +168,6 @@ Ruteo se extrae como servicio si se cumplen **tres señales durante dos campaña
 | [04-comparacion-alternativas.md](docs/actividad-2/04-comparacion-alternativas.md) | Matriz ponderada de 3 alternativas |
 | [05-criterios-verificables.md](docs/actividad-2/05-criterios-verificables.md) | Cómo comprobar que la decisión funciona |
 | [ADR-001](docs/adr/ADR-001-monolito-modular.md) | Decisión, opciones, justificación, trade-offs, riesgos y condición de revisión |
-| [guion-sustentacion.md](docs/actividad-2/guion-sustentacion.md) | Guion del video (8–10 min) |
 
 ---
 
@@ -244,7 +242,6 @@ Los escenarios Dado-Cuando-Entonces están en [`tests/features/asignar-entrega.f
 | [06-casos-uso-puertos-adaptadores.md](docs/actividad-3/06-casos-uso-puertos-adaptadores.md) | Casos de uso, puertos, adaptadores, capas y SOLID |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Diagramas C4 (contexto, contenedores, componentes) y guía técnica |
 | [ADR-002](docs/adr/ADR-002-dominio-entregas-puertos-adaptadores.md) | Decisiones de diseño, alternativas descartadas y trade-offs |
-| [guion-sustentacion.md](docs/actividad-3/guion-sustentacion.md) | Guion del video |
 
 ---
 
@@ -275,7 +272,6 @@ flowchart LR
 | Comprobación automatizada | [CI](.github/workflows/ci.yml): compilación, análisis de dependencias vulnerables y fitness functions |
 | Riesgos residuales y próximos pasos | [doc. 05](docs/actividad-4/05-resultados-residuales-proximos-pasos.md) |
 | Decisiones vinculadas a la Actividad 3 | [ADR-003](docs/adr/ADR-003-implementacion-persistencia-integracion.md) y la tabla de trazabilidad del doc. 01 |
-| Defensa final | [guion-sustentacion.md](docs/actividad-4/guion-sustentacion.md) |
 
 ---
 
